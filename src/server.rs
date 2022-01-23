@@ -1,4 +1,4 @@
-use crate::http::Request;
+use crate::{handler::Handler, http::Request};
 use std::{convert::TryFrom, io::Read, net::TcpListener};
 
 pub struct Server {
@@ -10,7 +10,7 @@ impl Server {
         Self { addr }
     }
 
-    pub fn run(self: Self) {
+    pub fn run(self: Self, mut handler: impl Handler) {
         let listener = TcpListener::bind(&self.addr).unwrap();
         println!("Listening on {}", self.addr);
 
@@ -25,9 +25,12 @@ impl Server {
 
                             match Request::try_from(&buffer[..]) {
                                 Ok(req) => {
-                                    println!("Req : {:?}", req)
+                                    println!("Req : {:?}", req);
+                                    handler.handle_request(&req).send(&mut stream);
                                 }
-                                Err(err) => println!("Failed to parse request: {}", err),
+                                Err(err) => {
+                                    handler.handle_bad_request(&err).send(&mut stream);
+                                }
                             }
                         }
                         Err(e) => println!("Failed to read from connection: {}", e),
